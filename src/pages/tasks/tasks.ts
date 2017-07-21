@@ -1,11 +1,10 @@
 import { Component } from '@angular/core';
 
 import { NavController, ModalController } from 'ionic-angular';
+import { AngularFireDatabase, FirebaseListObservable } from 'angularfire2/database';
 import { TasksCreatePage } from '../tasks-create/tasks-create';
 
-import { DynamoDB, User } from '../../providers/providers';
-
-declare var AWS: any;
+import {  User } from '../../providers/providers';
 
 @Component({
   selector: 'page-tasks',
@@ -13,14 +12,13 @@ declare var AWS: any;
 })
 export class TasksPage {
 
-  public items: any;
+  public items: FirebaseListObservable<any>;
   public refresher: any;
-  private taskTable: string = 'ionic-mobile-hub-tasks';
 
   constructor(public navCtrl: NavController,
               public modalCtrl: ModalController,
-              public user: User,
-              public db: DynamoDB) {
+              public db: AngularFireDatabase,
+              public user: User) {
 
     this.refreshTasks();
   }
@@ -31,71 +29,30 @@ export class TasksPage {
   }
 
   refreshTasks() {
-    this.db.getDocumentClient().query({
-      'TableName': this.taskTable,
-      'IndexName': 'DateSorted',
-      'KeyConditionExpression': "#userId = :userId",
-      'ExpressionAttributeNames': {
-        '#userId': 'userId',
-      },
-      'ExpressionAttributeValues': {
-        ':userId': AWS.config.credentials.identityId
-      },
-      'ScanIndexForward': false
-    }).promise().then((data) => {
-      this.items = data.Items;
-      if (this.refresher) {
-        this.refresher.complete();
-      }
-    }).catch((err) => {
-      console.log(err);
-    });
-  }
-
-  generateId() {
-    var len = 16;
-    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    var charLength = chars.length;
-    var result = "";
-    let randoms = window.crypto.getRandomValues(new Uint32Array(len));
-    for(var i = 0; i < len; i++) {
-      result += chars[randoms[i] % charLength];
-    }
-    return result.toLowerCase();
+    this.items = this.db.list('/items');
   }
 
   addTask() {
-    let id = this.generateId();
-    let addModal = this.modalCtrl.create(TasksCreatePage, { 'id': id });
+    let addModal = this.modalCtrl.create(TasksCreatePage);
     addModal.onDidDismiss(item => {
       if (item) {
-        item.userId = AWS.config.credentials.identityId;
+        item.userId = this.user.getUser().uid;
         item.created = (new Date().getTime() / 1000);
-        this.db.getDocumentClient().put({
-          'TableName': this.taskTable,
-          'Item': item,
-          'ConditionExpression': 'attribute_not_exists(id)'
-        }, function(err, data) {
-          if (err) { console.log(err); }
-          this.refreshTasks();
-        });
+
+        this.items.push(item)
+          .catch((err) => {
+            console.log(err);
+          });
       }
     })
     addModal.present();
   }
 
   deleteTask(task, index) {
-    this.db.getDocumentClient().delete({
-      'TableName': this.taskTable,
-      'Key': {
-        'userId': AWS.config.credentials.identityId,
-        'taskId': task.taskId
-      }
-    }).promise().then((data) => {
-      this.items.splice(index, 1);
-    }).catch((err) => {
-      console.log('there was an error', err);
-    });
+    this.items.remove(task.$key)
+      .catch((err) => {
+        console.log(err);
+      });
   }
 
 }

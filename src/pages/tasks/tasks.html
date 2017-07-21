@@ -1,7 +1,10 @@
 <ion-header>
-  <ion-navbar>
+  <ion-navbar color="primary">
+    <button ion-button menuToggle>
+      <ion-icon name="menu"></ion-icon>
+    </button>
     <ion-title>
-      Tasks 
+      Tasks
     </ion-title>
     <ion-buttons end>
       <button ion-button icon-only (click)="addTask()">
@@ -22,7 +25,7 @@
   </ion-refresher>
 
     <ion-list>
-      <ion-item-sliding *ngFor="let item of items; let idx = index;">
+      <ion-item-sliding *ngFor="let item of items | async; let idx = index;">
         <button ion-item>
           <h2>{{item.category}}</h2>
           <p>{{item.description}}</p>

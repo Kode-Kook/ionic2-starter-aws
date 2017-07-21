@@ -1,8 +1,7 @@
 import { Component } from '@angular/core';
 
-import { NavController, NavParams } from 'ionic-angular';
+import { LoadingController, ToastController, NavController, NavParams } from 'ionic-angular';
 
-import { LoginPage } from '../login/login';
 import { User } from '../../providers/user';
 
 @Component({
@@ -10,23 +9,47 @@ import { User } from '../../providers/user';
   templateUrl: 'confirm.html'
 })
 export class ConfirmPage {
-  
+
   public code: string;
   public username: string;
 
-  constructor(public navCtrl: NavController, public navParams: NavParams, public user: User) {
+  constructor(public navCtrl: NavController,
+              public navParams: NavParams,
+              public user: User,
+              public loadingCtrl: LoadingController,
+              public toastCtrl: ToastController) {
     this.username = navParams.get('username');
   }
 
-  confirm() {
-    this.user.confirmRegistration(this.username, this.code).then(() => {
-      this.navCtrl.push(LoginPage);
+  resendEmail() {
+    let loading = this.loadingCtrl.create({
+      content: 'Please wait...'
     });
+
+    loading.present();
+
+    this.user.resendRegistrationEmail(this.username)
+      .then((result) => {
+        let toast = this.toastCtrl.create({
+          message: 'Please check your email.',
+          duration: 3000
+        });
+
+        loading.dismiss();
+        toast.present();
+      }).catch((err) => {
+        let toast = this.toastCtrl.create({
+          message: err,
+          duration: 3000,
+          position: 'top'
+        });
+
+        loading.dismiss();
+        toast.present();
+      });
   }
 
-  resendCode() {
-    this.user.resendRegistrationCode(this.username);
+  goBack() {
+    this.navCtrl.pop();
   }
-
-
 }

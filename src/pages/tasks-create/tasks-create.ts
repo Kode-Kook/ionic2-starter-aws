@@ -20,7 +20,6 @@ export class TasksCreatePage {
               public platform: Platform) {
     this.isAndroid = platform.is('android');
     this.item = {
-      'taskId': navParams.get('id'),
       'category': 'Todo'
     };
     this.isReadyToSave = true;
@@ -34,7 +33,7 @@ export class TasksCreatePage {
     this.viewCtrl.dismiss();
   }
 
-  done() { 
+  done() {
     this.viewCtrl.dismiss(this.item);
   }
 }

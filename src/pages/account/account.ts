@@ -1,12 +1,10 @@
 import { Component, ViewChild } from '@angular/core';
-
-import { Config, LoadingController, NavController } from 'ionic-angular';
-
+import { Platform, LoadingController, NavController } from 'ionic-angular';
 import { Camera, CameraOptions } from '@ionic-native/camera';
+import * as firebase from 'firebase/app';
+import 'firebase/storage';
 
-import { DynamoDB, User } from '../../providers/providers';
-
-declare var AWS: any;
+import { User } from '../../providers/providers';
 
 @Component({
   selector: 'page-account',
@@ -16,37 +14,36 @@ export class AccountPage {
 
   @ViewChild('avatar') avatarInput;
 
-  private s3: any;
   public avatarPhoto: string;
   public selectedPhoto: Blob;
   public attributes: any;
   public sub: string = null;
 
-  constructor(public navCtrl: NavController,
+  constructor(public platform: Platform,
+              public navCtrl: NavController,
               public user: User,
-              public db: DynamoDB,
-              public config: Config,
               public camera: Camera,
               public loadingCtrl: LoadingController) {
     this.attributes = [];
-    this.avatarPhoto = null;
+    this.avatarPhoto = user.getUser().photoURL;
     this.selectedPhoto = null;
-    this.s3 = new AWS.S3({
-      'params': {
-        'Bucket': config.get('aws_user_files_s3_bucket')
-      },
-      'region': config.get('aws_user_files_s3_bucket_region')
-    });
-    this.sub = AWS.config.credentials.identityId;
-    user.getUser().getUserAttributes((err, data) => {
-      this.attributes = data;
-      this.refreshAvatar();
-    });
+    this.sub = user.getUser().uid;
+    this.attributes = [
+      { name: 'displayName', value: user.getUser().displayName },
+      { name: 'email', value: user.getUser().email },
+      { name: 'emailVerified', value: user.getUser().emailVerified },
+      { name: 'photoURL', value: user.getUser().photoURL },
+      { name: 'uid', value: user.getUser().uid }
+    ];
+    this.refreshAvatar();
   }
 
   refreshAvatar() {
-    this.s3.getSignedUrl('getObject', {'Key': 'protected/' + this.sub + '/avatar'}, (err, url) => {
-      this.avatarPhoto = url;
+    let storageRef   = firebase.storage().ref();
+    let mountainsRef = storageRef.child('protected/' + this.sub + '/avatar.jpg');
+
+    mountainsRef.getDownloadURL().then((url) => {
+       this.avatarPhoto = url;
     });
   }
 
@@ -70,37 +67,77 @@ export class AccountPage {
       mediaType: this.camera.MediaType.PICTURE
     }
 
-    this.camera.getPicture(options).then((imageData) => {
-      let loading = this.loadingCtrl.create({
-        content: 'Please wait...'
+    if (this.platform.is('cordova')) {
+      this.camera.getPicture(options).then((imageData) => {
+        let loading = this.loadingCtrl.create({
+          content: 'Please wait...'
+        });
+        loading.present();
+        // imageData is either a base64 encoded string or a file URI
+        // If it's base64:
+        this.selectedPhoto  = this.dataURItoBlob('data:image/jpeg;base64,' + imageData);
+        this.upload(loading);
+      }, (err) => {
+        // Handle error
       });
-      loading.present();
-      // imageData is either a base64 encoded string or a file URI
-      // If it's base64:
-      this.selectedPhoto  = this.dataURItoBlob('data:image/jpeg;base64,' + imageData);
-      this.upload(loading);
-    }, (err) => {
-      // Handle error
+    } else {
+      this.avatarInput.nativeElement.click();
+    }
+  }
+
+  uploadFile($event) {
+    let loading = this.loadingCtrl.create({
+      content: 'Please wait...'
     });
-    //this.avatarInput.nativeElement.click();
+    loading.present();
+    this.selectedPhoto = $event.target.files[0];
+    this.upload(loading);
   }
 
   upload(loading: any) {
     if (this.selectedPhoto) {
-      this.s3.upload({
-        'Key': 'protected/' + this.sub + '/avatar',
-        'Body': this.selectedPhoto,
-        'ContentType': 'image/jpeg'
-      }).promise().then((data) => {
-        this.refreshAvatar();
-        console.log('upload complete:', data);
-        loading.dismiss();
-      }).catch((err) => {
-        console.log('upload failed....', err);
-        loading.dismiss();
-      });
-    }
-    loading.dismiss();
+      // imageData is either a base64 encoded string or a file URI
+      // If it's base64:
+      let storageRef   = firebase.storage().ref();
+      let mountainsRef = storageRef.child('protected/' + this.sub + '/avatar.jpg');
 
+      const uploadTask = mountainsRef.put(this.selectedPhoto);
+
+      // Register three observers:
+      // 1. 'state_changed' observer, called any time the state changes
+      // 2. Error observer, called on failure
+      // 3. Completion observer, called on successful completion
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+          let progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+
+          console.log('Upload is ' + progress + '% done');
+
+          switch (snapshot.state) {
+            case firebase.storage.TaskState.PAUSED: // or 'paused'
+              console.log('Upload is paused');
+              break;
+            case firebase.storage.TaskState.RUNNING: // or 'running'
+              console.log('Upload is running');
+              break;
+          }
+        }, (error) => {
+          // Handle unsuccessful uploads
+          console.log('upload failed....', error);
+          loading.dismiss();
+        }, () => {
+          // Handle successful uploads on complete
+          // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+          let downloadURL = uploadTask.snapshot.downloadURL;
+
+          this.attributes.photoURL = downloadURL;
+          this.refreshAvatar();
+
+          console.log('upload complete');
+          loading.dismiss();
+        }
+      );
+    }
   }
 }

@@ -1,28 +1,25 @@
 import { Injectable } from '@angular/core';
 
-declare var AWS: any;
-declare const aws_mobile_analytics_app_id;
-declare const aws_cognito_region;
-declare const aws_cognito_identity_pool_id;
-declare const aws_user_pools_id;
-declare const aws_user_pools_web_client_id;
-declare const aws_user_files_s3_bucket;
+declare const firebase_api_key;
+declare const firebase_auth_domain;
+declare const firebase_database_url;
+declare const firebase_project_id;
+declare const firebase_storage_bucket;
+declare const firebase_messaging_sender_id;
 
 @Injectable()
-export class AwsConfig {
+export class FirebaseConfig {
   public load() {
 
-    // Expects global const values defined by aws-config.js
+    // Expects global const values defined by firebase-config.js
     const cfg = {
-      "aws_mobile_analytics_app_id": aws_mobile_analytics_app_id,
-      "aws_cognito_region": aws_cognito_region,
-      "aws_cognito_identity_pool_id": aws_cognito_identity_pool_id,
-      "aws_user_pools_id": aws_user_pools_id,
-      "aws_user_pools_web_client_id": aws_user_pools_web_client_id,
-      "aws_user_files_s3_bucket": aws_user_files_s3_bucket
+      "apiKey": firebase_api_key,
+      "authDomain": firebase_auth_domain,
+      "databaseURL": firebase_database_url,
+      "projectId": firebase_project_id,
+      "storageBucket": firebase_storage_bucket,
+      "messagingSenderId": firebase_messaging_sender_id
     };
-
-    AWS.config.customUserAgent = AWS.config.customUserAgent + ' Ionic';
 
     return cfg;
   }

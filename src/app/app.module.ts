@@ -1,13 +1,18 @@
-import { NgModule, ErrorHandler } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
-import { IonicApp, IonicModule, IonicErrorHandler } from 'ionic-angular';
-
+import { ErrorHandler, NgModule } from '@angular/core';
+import { IonicApp, IonicErrorHandler, IonicModule } from 'ionic-angular';
+import { StatusBar } from '@ionic-native/status-bar';
+import { SplashScreen } from '@ionic-native/splash-screen';
 import { Camera } from '@ionic-native/camera';
 
+import { FirebaseConfig } from './app.config';
 import { MyApp } from './app.component';
+import { User } from '../providers/user';
+
 import { LoginPage } from '../pages/login/login';
 import { SignupPage } from '../pages/signup/signup';
 import { ConfirmPage } from '../pages/confirm/confirm';
+import { RequestPasswordPage } from '../pages/requestPassword/requestPassword';
 import { SettingsPage } from '../pages/settings/settings';
 import { AboutPage } from '../pages/about/about';
 import { AccountPage } from '../pages/account/account';
@@ -15,13 +20,9 @@ import { TabsPage } from '../pages/tabs/tabs';
 import { TasksPage } from '../pages/tasks/tasks';
 import { TasksCreatePage } from '../pages/tasks-create/tasks-create';
 
-import { StatusBar } from '@ionic-native/status-bar';
-import { SplashScreen } from '@ionic-native/splash-screen';
-
-import { User } from '../providers/user';
-import { Cognito } from '../providers/aws.cognito';
-import { DynamoDB } from '../providers/aws.dynamodb';
-
+import { AngularFireModule } from 'angularfire2';
+import { AngularFireDatabaseModule } from 'angularfire2/database';
+import { AngularFireAuthModule } from 'angularfire2/auth';
 
 @NgModule({
   declarations: [
@@ -29,6 +30,7 @@ import { DynamoDB } from '../providers/aws.dynamodb';
     LoginPage,
     SignupPage,
     ConfirmPage,
+    RequestPasswordPage,
     SettingsPage,
     AboutPage,
     AccountPage,
@@ -38,7 +40,10 @@ import { DynamoDB } from '../providers/aws.dynamodb';
   ],
   imports: [
     BrowserModule,
-    IonicModule.forRoot(MyApp)
+    IonicModule.forRoot(MyApp),
+    AngularFireModule.initializeApp(new FirebaseConfig().load()),
+    AngularFireDatabaseModule,
+    AngularFireAuthModule
   ],
   bootstrap: [IonicApp],
   entryComponents: [
@@ -46,6 +51,7 @@ import { DynamoDB } from '../providers/aws.dynamodb';
     LoginPage,
     SignupPage,
     ConfirmPage,
+    RequestPasswordPage,
     SettingsPage,
     AboutPage,
     AccountPage,
@@ -58,12 +64,7 @@ import { DynamoDB } from '../providers/aws.dynamodb';
     SplashScreen,
     {provide: ErrorHandler, useClass: IonicErrorHandler},
     Camera,
-    User,
-    Cognito,
-    DynamoDB
+    User
   ]
 })
 export class AppModule {}
-
-declare var AWS;
-AWS.config.customUserAgent = AWS.config.customUserAgent + ' Ionic';
